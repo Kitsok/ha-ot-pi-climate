@@ -77,6 +77,9 @@ host-side simulator for developing without a physical gateway or boiler. It
 provides the existing `s <temperature>` and `g` interface through a single-client
 Unix socket suitable for a QEMU serial backend.
 
+See the [simulator operations guide](tools/README.md) for complete instructions
+for running it and attaching it with QEMU or Proxmox.
+
 Run it with:
 
 ```bash
