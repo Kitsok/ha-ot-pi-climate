@@ -1,0 +1,12 @@
+{
+  "domain": "ot_pi_climate",
+  "name": "OpenTherm PI Climate",
+  "codeowners": ["@Kitsok"],
+  "config_flow": true,
+  "documentation": "https://github.com/Kitsok/ha-ot-pi-climate",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Kitsok/ha-ot-pi-climate/issues",
+  "requirements": ["serialx==1.10.0"],
+  "version": "0.1.0"
+}
