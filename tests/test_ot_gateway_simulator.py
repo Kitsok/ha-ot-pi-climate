@@ -64,7 +64,8 @@ def test_frame_has_even_parity_and_decodes() -> None:
     assert decoded["value"] == 60.0
 
 
-def test_cli_without_control_file(tmp_path) -> None:
+@pytest.mark.parametrize("log_ot", [False, True])
+def test_cli_without_control_file(tmp_path, log_ot) -> None:
     """Exercise startup, polling, commands, and shutdown on the test interpreter."""
 
     script = Path(__file__).resolve().parents[1] / "tools" / "ot_gateway_simulator.py"
@@ -77,6 +78,7 @@ def test_cli_without_control_file(tmp_path) -> None:
                 "--socket", str(socket_path),
                 "--control-file", str(tmp_path / "missing.json"),
                 "--json-log", str(event_log),
+                *(["--log-ot"] if log_ot else []),
             ],
             stdout=output,
             stderr=subprocess.STDOUT,
@@ -110,7 +112,25 @@ def test_cli_without_control_file(tmp_path) -> None:
     events = [json.loads(line) for line in event_log.read_text().splitlines()]
     frames = [event["frame"] for event in events if event["event"] == "ot_frame"]
     assert frames
+    assert ("ot_frame" in captured) is log_ot
+    assert "consumer_rx" in captured
+    assert any(event["event"] == "consumer_rx" for event in events)
     assert all(frame["parity_valid"] for frame in frames)
+
+
+@pytest.mark.parametrize("log_ot", [False, True])
+def test_ot_timeouts_always_logged_to_file(tmp_path, capsys, log_ot) -> None:
+    path = tmp_path / "events.jsonl"
+    logger = EventLogger(path, log_ot=log_ot)
+    try:
+        logger.emit("ot_timeout", "no boiler response", request={"raw": "0x00000000"})
+    finally:
+        logger.close()
+
+    assert ("ot_timeout" in capsys.readouterr().out) is log_ot
+    record = json.loads(path.read_text())
+    assert record["event"] == "ot_timeout"
+    assert record["request"] == {"raw": "0x00000000"}
 
 
 def test_boiler_off_and_watchdog_fallback(tmp_path) -> None:

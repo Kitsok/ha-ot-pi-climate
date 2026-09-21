@@ -40,14 +40,22 @@ Useful options are:
 --socket PATH                 Unix socket exposed to QEMU
 --control-file PATH           Optional runtime-control JSON file
 --json-log PATH               Structured event log in JSON Lines format
+--log-ot                      Show OpenTherm frames and timeouts in the terminal
 --poll-interval SECONDS       Boiler polling interval; default 0.9
 --watchdog-timeout SECONDS    Missing-command timeout; default 300
 --initial-temperature CELSIUS Initial boiler-water temperature; default 25
 ```
 
-The terminal output and JSON Lines log include consumer commands, gateway
-responses, and decoded OpenTherm request/response frames. Follow the structured
-log with:
+The JSON Lines file always includes all events, including OpenTherm frames and
+timeouts. The terminal shows consumer commands, gateway responses, and simulator
+lifecycle events by default. Add `--log-ot` to also show OpenTherm frames and
+timeouts in the terminal:
+
+```bash
+python3 tools/ot_gateway_simulator.py --socket /tmp/otgw-simulator.sock --log-ot
+```
+
+Follow the structured log with:
 
 ```bash
 tail -f otgw-simulator.jsonl

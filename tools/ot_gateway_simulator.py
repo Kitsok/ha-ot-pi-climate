@@ -117,7 +117,8 @@ def decode_frame(frame: int) -> dict[str, Any]:
 class EventLogger:
     """Write readable local-time events and structured JSON Lines."""
 
-    def __init__(self, json_path: Path | None) -> None:
+    def __init__(self, json_path: Path | None, *, log_ot: bool = False) -> None:
+        self._log_ot = log_ot
         self._json_file = None
         if json_path is not None:
             json_path.parent.mkdir(parents=True, exist_ok=True)
@@ -130,7 +131,8 @@ class EventLogger:
     def emit(self, event: str, message: str, **fields: Any) -> None:
         now = datetime.now().astimezone()
         timestamp = now.isoformat(timespec="milliseconds")
-        print(f"{timestamp} {event:<18} {message}", flush=True)
+        if self._log_ot or event not in {"ot_frame", "ot_timeout"}:
+            print(f"{timestamp} {event:<18} {message}", flush=True)
         if self._json_file is not None:
             record = {
                 "timestamp": timestamp,
@@ -571,6 +573,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=Path("otgw-simulator.jsonl"),
         help="structured JSON Lines log (default: %(default)s)",
     )
+    parser.add_argument(
+        "--log-ot",
+        action="store_true",
+        help="show OpenTherm frames and timeouts in the terminal (file logging is always full)",
+    )
     parser.add_argument("--poll-interval", type=float, default=0.9)
     parser.add_argument("--watchdog-timeout", type=float, default=300.0)
     parser.add_argument("--initial-temperature", type=float, default=25.0)
@@ -578,7 +585,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 async def async_main(args: argparse.Namespace) -> None:
-    event_logger = EventLogger(args.json_log)
+    event_logger = EventLogger(args.json_log, log_ot=args.log_ot)
     simulator = GatewaySimulator(
         socket_path=args.socket,
         control_path=args.control_file,

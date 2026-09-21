@@ -99,8 +99,9 @@ built-in boiler defaults. The JSON Lines event log is separate output created
 by the simulator; it is not an input file. See the operations guide for the
 corresponding command-line options.
 
-The simulator prints readable local-time logs and writes the same events as
-JSON Lines. Its virtual firmware polls the boiler every 900 ms using decoded
+The simulator prints readable local-time logs and always writes all events as
+JSON Lines. Add `--log-ot` to also show OpenTherm frames and timeouts in the
+terminal. Its virtual firmware polls the boiler every 900 ms using decoded
 OpenTherm request/response frames for status, temperatures, pressure,
 modulation, fault information, and the control setpoint.
 
