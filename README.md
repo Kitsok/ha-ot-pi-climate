@@ -36,12 +36,19 @@ All values can be changed later using **Configure** on the integration. Changes
 cause an automatic integration reload and require no Home Assistant restart.
 Multiple gateways are supported as separate integration entries.
 
+The room sensor must declare a Celsius, Fahrenheit, or Kelvin unit. Readings are
+converted to Celsius; missing or unsupported units and nonfinite readings are
+treated as sensor failures.
+
 ## Operation and safety behavior
 
 Every minute the integration sends `s <setpoint>` as the firmware heartbeat and
 then sends `g` to retrieve boiler state. Target and HVAC mode changes also
 request an immediate update. Room-temperature changes are consumed by the next
 one-minute control cycle so frequent sensor updates do not distort the integral.
+The integral is scaled by elapsed time, so immediate updates do not each count
+as another minute. The first update after setup uses the restored integral
+without adding time spent offline.
 
 The serial connection is kept open and leaves DTR/RTS untouched so reconnecting
 does not intentionally reset the gateway controller.

@@ -64,7 +64,9 @@ class OpenThermGateway:
                 try:
                     await self.async_connect()
                     await self._send_command(f"s {setpoint}")
-                    await self._read_response()
+                    acknowledgement = self._decode_response(await self._read_response())
+                    if acknowledgement.get("status") is not True:
+                        raise OpenThermGatewayError("Gateway rejected the setpoint command")
                     await self._send_command("g")
                     response = await self._read_response()
                     data = self._decode_snapshot(response)
@@ -98,12 +100,19 @@ class OpenThermGateway:
         return raw.decode("ascii").strip()
 
     @staticmethod
-    def _decode_snapshot(response: str) -> dict[str, Any]:
+    def _decode_response(response: str) -> dict[str, Any]:
         start = response.find("{")
         end = response.rfind("}")
         if start < 0 or end < start:
             raise json.JSONDecodeError("No JSON object in gateway response", response, 0)
         decoded = json.loads(response[start : end + 1])
-        if not isinstance(decoded, dict) or "Flame" not in decoded:
-            raise json.JSONDecodeError("Incomplete gateway response", response, start)
+        if not isinstance(decoded, dict):
+            raise json.JSONDecodeError("Gateway response is not an object", response, start)
+        return decoded
+
+    @staticmethod
+    def _decode_snapshot(response: str) -> dict[str, Any]:
+        decoded = OpenThermGateway._decode_response(response)
+        if "Flame" not in decoded:
+            raise json.JSONDecodeError("Incomplete gateway response", response, 0)
         return decoded

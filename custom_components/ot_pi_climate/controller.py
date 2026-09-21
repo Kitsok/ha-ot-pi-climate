@@ -1,5 +1,6 @@
 """PI room-temperature controller."""
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,6 +19,7 @@ from .const import (
     DEFAULTS,
     HEAT_THRESHOLD,
     OFF_WATER_TEMP,
+    UPDATE_INTERVAL_SECONDS,
 )
 
 
@@ -80,9 +82,18 @@ class PIController:
         }
 
     def calculate(
-        self, room_temperature: float | None, water_temperature: float | None
+        self,
+        room_temperature: float | None,
+        water_temperature: float | None,
+        *,
+        elapsed_seconds: float = UPDATE_INTERVAL_SECONDS,
     ) -> ControllerResult:
-        """Calculate the next boiler-water setpoint."""
+        """Calculate output, scaling the integral by elapsed time in minutes."""
+
+        if room_temperature is not None and not math.isfinite(room_temperature):
+            room_temperature = None
+        if water_temperature is not None and not math.isfinite(water_temperature):
+            water_temperature = None
 
         sensor_failsafe = room_temperature is None and self.hvac_mode == HVACMode.HEAT
         frost_active = water_temperature is not None and water_temperature < self.frost_temperature
@@ -95,7 +106,7 @@ class PIController:
             heating = False
         else:
             error = self.target_temperature - room_temperature
-            self.integral += error * self.integral_factor
+            self.integral += error * self.integral_factor * elapsed_seconds / UPDATE_INTERVAL_SECONDS
             self.integral = min(self.integral_max, max(self.integral_min, self.integral))
             calculated = self.kp * (error + self.integral / self.ti) + 40.0
             heating = calculated > HEAT_THRESHOLD

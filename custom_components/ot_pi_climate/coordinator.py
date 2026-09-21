@@ -1,11 +1,15 @@
 """Update coordinator for OpenTherm PI Climate."""
 
 import logging
+import math
+import time
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .const import UPDATE_INTERVAL_SECONDS
 from .controller import ControllerResult, PIController
@@ -34,6 +38,7 @@ class OpenThermCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.controller = controller
         self.temperature_entity = temperature_entity
         self.result = ControllerResult(39, False, False, False)
+        self._last_calculation: float | None = None
 
     @property
     def room_temperature(self) -> float | None:
@@ -43,9 +48,17 @@ class OpenThermCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if state is None or state.state in ("unknown", "unavailable"):
             return None
         try:
-            return float(state.state)
+            temperature = float(state.state)
         except (TypeError, ValueError):
             return None
+        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+        if not math.isfinite(temperature) or unit not in (
+            UnitOfTemperature.CELSIUS,
+            UnitOfTemperature.FAHRENHEIT,
+            UnitOfTemperature.KELVIN,
+        ):
+            return None
+        return TemperatureConverter.convert(temperature, unit, UnitOfTemperature.CELSIUS)
 
     async def _async_update_data(self) -> dict[str, Any]:
         previous_water_temperature = None
@@ -55,7 +68,12 @@ class OpenThermCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except (KeyError, TypeError, ValueError):
                 pass
 
-        self.result = self.controller.calculate(self.room_temperature, previous_water_temperature)
+        now = time.monotonic()
+        elapsed_seconds = 0.0 if self._last_calculation is None else now - self._last_calculation
+        self._last_calculation = now
+        self.result = self.controller.calculate(
+            self.room_temperature, previous_water_temperature, elapsed_seconds=elapsed_seconds
+        )
         try:
             return await self.gateway.async_update(self.result.water_setpoint)
         except OpenThermGatewayError as err:

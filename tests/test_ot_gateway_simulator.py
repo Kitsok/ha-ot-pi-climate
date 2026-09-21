@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 
 import pytest
@@ -138,3 +139,24 @@ def test_control_file_updates_faults_and_response_mode(tmp_path) -> None:
     assert simulator.state.fault_code == 12
     assert simulator.state.gateway_response_mode == "malformed"
     assert simulator.state.water_temperature == 33.5
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [{"heat_rate": None}, {"water_temperature": []}, {"fault_code": float("inf")}],
+)
+def test_invalid_control_file_does_not_prevent_later_updates(tmp_path, capsys, invalid) -> None:
+    simulator = make_simulator(tmp_path)
+    control = tmp_path / "control.json"
+    control.write_text(json.dumps(invalid), encoding="utf-8")
+    original_mtime = control.stat().st_mtime_ns
+
+    simulator._load_control_file()
+
+    assert "control_error" in capsys.readouterr().out
+    control.write_text('{"heat_rate":0.2}', encoding="utf-8")
+    os.utime(control, ns=(original_mtime + 1_000_000, original_mtime + 1_000_000))
+    simulator._load_control_file()
+
+    assert simulator.state.heat_rate == 0.2
+    assert "control_loaded" in capsys.readouterr().out

@@ -506,7 +506,7 @@ class GatewaySimulator:
             if not isinstance(document, dict):
                 raise ValueError("control document must be a JSON object")
             self._apply_control(document)
-        except (OSError, ValueError, json.JSONDecodeError) as err:
+        except (OSError, ValueError, TypeError, OverflowError) as err:
             self.log.emit("control_error", str(err), error=str(err))
             return
         self.log.emit("control_loaded", str(self.control_path), values=document)
