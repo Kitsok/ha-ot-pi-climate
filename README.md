@@ -84,10 +84,13 @@ Run it with:
 
 ```bash
 python3 tools/ot_gateway_simulator.py \
-  --socket /tmp/otgw-simulator.sock \
-  --control-file /tmp/otgw-simulator-control.json \
-  --json-log otgw-simulator.jsonl
+  --socket /tmp/otgw-simulator.sock
 ```
+
+The control JSON file is optional. If it does not exist, the simulator uses its
+built-in boiler defaults. The JSON Lines event log is separate output created
+by the simulator; it is not an input file. See the operations guide for the
+corresponding command-line options.
 
 The simulator prints readable local-time logs and writes the same events as
 JSON Lines. Its virtual firmware polls the boiler every 900 ms using decoded

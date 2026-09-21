@@ -17,10 +17,17 @@ From the repository root, run:
 
 ```bash
 python3 tools/ot_gateway_simulator.py \
-  --socket /tmp/otgw-simulator.sock \
-  --control-file /tmp/otgw-simulator-control.json \
-  --json-log /tmp/otgw-simulator.jsonl
+  --socket /tmp/otgw-simulator.sock
 ```
+
+No control JSON file is required. If the watched control file does not exist,
+the simulator runs with its built-in boiler defaults. Use `--control-file` only
+to select a file from which runtime overrides can be loaded.
+
+The JSON Lines event log is separate from the control file. It is output that
+the simulator creates automatically, not required input. By default it is
+written to `otgw-simulator.jsonl` in the current directory; use `--json-log` to
+choose another output path.
 
 Stop it with Ctrl+C. It removes its socket during a normal shutdown. If the
 process is killed, it safely replaces a stale socket the next time it starts.
@@ -42,13 +49,15 @@ responses, and decoded OpenTherm request/response frames. Follow the structured
 log with:
 
 ```bash
-tail -f /tmp/otgw-simulator.jsonl
+tail -f otgw-simulator.jsonl
 ```
 
 ### Change the simulated boiler state
 
-The control file is optional. Create or edit it while the simulator is
-running; changes are detected automatically. For example:
+The control file is optional. The default watched path is
+`/tmp/otgw-simulator-control.json`, but it does not need to exist. Create or
+edit that file while the simulator is running to override its state; changes
+are detected automatically. For example:
 
 ```json
 {
