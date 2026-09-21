@@ -71,7 +71,7 @@ def build_frame(message_type: MessageType, data_id: int, data_value: int) -> int
     """Build a 32-bit OpenTherm frame with even parity."""
 
     frame = (int(message_type) << 28) | ((data_id & 0xFF) << 16) | (data_value & 0xFFFF)
-    if frame.bit_count() & 1:
+    if bin(frame).count("1") & 1:
         frame |= 1 << 31
     return frame
 
@@ -105,7 +105,7 @@ def decode_frame(frame: int) -> dict[str, Any]:
 
     return {
         "raw": f"0x{frame:08X}",
-        "parity_valid": frame.bit_count() % 2 == 0,
+        "parity_valid": bin(frame).count("1") % 2 == 0,
         "message_type": message_type,
         "data_id": data_id,
         "data_name": name,
@@ -150,7 +150,7 @@ class EventLogger:
         self.emit("ot_frame", message, direction=direction, frame=decoded)
 
 
-@dataclass(slots=True)
+@dataclass
 class BoilerState:
     """Small deterministic boiler model."""
 

@@ -10,8 +10,9 @@ one consumer can be connected at a time.
 
 ## Run it manually
 
-Python 3.10 or newer is required. The simulator has no third-party Python
-dependencies.
+Python 3.8 or newer is required, including Python 3.9 and 3.10+. The simulator
+has no third-party Python dependencies. This applies only to the standalone
+simulator; the Home Assistant integration retains its own requirements.
 
 From the repository root, run:
 

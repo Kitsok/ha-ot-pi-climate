@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import socket
+import subprocess
+import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -53,11 +57,60 @@ def test_frame_has_even_parity_and_decodes() -> None:
     frame = build_frame(MessageType.WRITE_DATA, 1, encode_f88(60.0))
     decoded = decode_frame(frame)
 
-    assert frame.bit_count() % 2 == 0
+    assert bin(frame).count("1") % 2 == 0
     assert decoded["parity_valid"] is True
     assert decoded["message_type"] == "WRITE_DATA"
     assert decoded["data_name"] == "TSet"
     assert decoded["value"] == 60.0
+
+
+def test_cli_without_control_file(tmp_path) -> None:
+    """Exercise startup, polling, commands, and shutdown on the test interpreter."""
+
+    script = Path(__file__).resolve().parents[1] / "tools" / "ot_gateway_simulator.py"
+    socket_path = tmp_path / "gateway.sock"
+    event_log = tmp_path / "events.jsonl"
+    with (tmp_path / "output.log").open("w+") as output:
+        process = subprocess.Popen(
+            [
+                sys.executable, str(script),
+                "--socket", str(socket_path),
+                "--control-file", str(tmp_path / "missing.json"),
+                "--json-log", str(event_log),
+            ],
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        )
+        try:
+            deadline = time.monotonic() + 10
+            while not socket_path.exists():
+                assert process.poll() is None, "Simulator exited before creating the socket"
+                assert time.monotonic() < deadline, "Simulator startup timed out"
+                time.sleep(0.01)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                client.settimeout(5)
+                client.connect(str(socket_path))
+                with client.makefile("rb") as responses:
+                    client.sendall(b"s 55\rg\r")
+                    assert json.loads(responses.readline()) == {"status": True}
+                    assert json.loads(responses.readline())["Setpoint"] == 55
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            output.seek(0)
+            captured = output.read()
+
+    assert process.returncode == 0, captured
+    assert "Traceback" not in captured
+    assert not socket_path.exists()
+    events = [json.loads(line) for line in event_log.read_text().splitlines()]
+    frames = [event["frame"] for event in events if event["event"] == "ot_frame"]
+    assert frames
+    assert all(frame["parity_valid"] for frame in frames)
 
 
 def test_boiler_off_and_watchdog_fallback(tmp_path) -> None:
