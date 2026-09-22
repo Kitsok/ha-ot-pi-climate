@@ -9,12 +9,14 @@ and publishes boiler telemetry.
 - Home Assistant 2026.5 or newer.
 - The compatible gateway connected to the Home Assistant host or passed through
   to its virtual machine.
-- Gateway serial speed of 115200 baud.
+- Matching gateway serial speed (115200 baud by default).
 - A Home Assistant temperature sensor for the controlled room.
 
 The integration intentionally uses only the firmware's existing `s <temp>` and
-`g` serial commands. Domestic hot water is not controlled. A water setpoint of
-39 °C is the firmware command for central-heating off.
+`g` serial commands. Domestic hot water is not controlled. The
+supported firmware accepts integer commands from 1 to 85: values below 41
+switch central heating off, while 41–85 request heating. The default off
+command is `s 39`; the firmware uses an internal 39 °C target for all off commands.
 
 ## Installation with HACS
 
@@ -27,14 +29,46 @@ The integration intentionally uses only the firmware's existing `s <temp>` and
 
 ## Configuration
 
-The setup form contains all settings, including the serial path, room temperature
-sensor, PI coefficients and limits, water-temperature limits, always-active frost
-threshold, sensor-failure target, and initial room target. Prefer a stable
-`/dev/serial/by-id/...` serial path.
+The setup form and **Configure** options expose the following settings. Prefer a
+stable `/dev/serial/by-id/...` serial path.
 
-All values can be changed later using **Configure** on the integration. Changes
-cause an automatic integration reload and require no Home Assistant restart.
-Multiple gateways are supported as separate integration entries.
+| Settings | Defaults / behavior |
+| --- | --- |
+| Name, serial path, room temperature sensor | Select the gateway and sensor during setup |
+| Kp, Ti, integral factor | 20.6, 105.2, 0.8 per minute |
+| Integral minimum / maximum | −5 / 90 |
+| Minimum / maximum heating water temperature | 41 / 75 °C |
+| Control and telemetry interval | 60 seconds |
+| Baud rate, read/write timeout, total communication attempts | 115200, 2 seconds, 5 attempts |
+| Heating-off command, PI activation threshold, PI output baseline | 39, 40 °C, 40 °C |
+| Water setpoint step | 1 °C; configurable whole-degree multiples, clamped to water limits |
+| Room target minimum / maximum / step | 5 / 35 / 0.5 °C |
+| Available operating modes | Heat and Off; one or both can be exposed |
+| Initial room target, operating mode, integral | 20 °C, Heat, 0 |
+| Restore saved target, mode and integral | Enabled |
+| Frost protection and permission to override Off | Both enabled |
+| Frost temperature source and threshold | Gateway heating water, 22 °C; room sensor can be selected |
+| Frost heating water target | Empty: follows minimum water temperature; optional separate target |
+| Room-sensor failure action and target | Heat at 60 °C; Off or Hold last water command can be selected |
+| DTR/RTS on serial open and close | Leave unchanged; each can be set Low or High |
+
+Changes automatically reload the integration; no Home Assistant restart is needed.
+Existing entries receive the new defaults. Multiple gateways are supported as
+separate integration entries.
+
+PI tuning and frost thresholds have no arbitrary upper limits or fixed decimal
+increments. Values must be finite; Kp and the integral factor must be nonnegative,
+and Ti, timeouts, the update interval and room-target step must be positive.
+Gateway temperature commands remain whole numbers within its supported ranges.
+Failsafe and explicit frost targets must lie within the configured water limits.
+The initial room target and integral must lie within their respective limits,
+and the initial mode must be among the available modes.
+
+Saved state takes precedence over initial values. Disable **Restore saved target,
+mode and integral** to apply the initial settings on restart or options reload.
+Restored values are clamped to the current limits; a saved mode that is no longer
+available falls back to the initial mode. Change the current room target through
+the climate entity for immediate control.
 
 The room sensor must declare a Celsius, Fahrenheit, or Kelvin unit. Readings are
 converted to Celsius; missing or unsupported units and nonfinite readings are
@@ -42,22 +76,31 @@ treated as sensor failures.
 
 ## Operation and safety behavior
 
-Every minute the integration sends `s <setpoint>` as the firmware heartbeat and
-then sends `g` to retrieve boiler state. Target and HVAC mode changes also
-request an immediate update. Room-temperature changes are consumed by the next
-one-minute control cycle so frequent sensor updates do not distort the integral.
-The integral is scaled by elapsed time, so immediate updates do not each count
-as another minute. The first update after setup uses the restored integral
-without adding time spent offline.
+At the configured interval, the integration sends `s <setpoint>` as the firmware
+heartbeat and then sends `g` to retrieve boiler state. Target and HVAC mode
+changes also request an immediate update. Room-temperature changes are consumed
+by the next control cycle. Integral accumulation remains proportional to elapsed
+time in minutes regardless of the polling interval. The first update after
+setup uses the restored or initial integral without adding time spent offline.
 
-The serial connection is kept open and leaves DTR/RTS untouched so reconnecting
-does not intentionally reset the gateway controller.
+The PI water target is `Kp × (room error + integral / Ti) + output baseline`.
+Heating is requested when this exceeds the activation threshold. Heating targets
+are clamped to the water limits and rounded to multiples of the configured
+whole-degree step; the limits take priority at the endpoints.
 
-- In heat mode, the PI controller determines the water target.
-- In off mode, the integration sends `s 39`.
-- Frost protection overrides off mode and cannot be disabled.
-- If the room sensor is unavailable in heat mode, the configured failure target
-  is used (60 °C by default).
+The serial connection is kept open. By default, DTR/RTS remain untouched so
+reconnecting does not intentionally reset the gateway controller; their open
+and close states are configurable.
+
+- In Heat mode, the PI controller determines the water target.
+- In Off mode, the integration sends the configured off command (`s 39` by default).
+- When enabled, frost protection requests heating below its selected temperature
+  threshold. It raises the water target to at least the frost target, subject to
+  water limits and output rounding. It overrides Off only if that option is enabled.
+- If the room sensor is unavailable in Heat mode, the selected failure action
+  applies: heat at the failsafe target, turn heating off, or hold the last calculated
+  command. Hold starts with the off command after setup/reload, until another
+  output is calculated. Frost protection can override any failure action.
 - DHW remains under boiler/firmware control.
 - The installed firmware's five-minute missing-command watchdog remains the
   final fallback if Home Assistant stops communicating.

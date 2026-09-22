@@ -16,16 +16,61 @@
           "integral_max": "Integral maximum",
           "min_water_temperature": "Minimum heating water temperature",
           "max_water_temperature": "Maximum heating water temperature",
-          "frost_temperature": "Frost-protection water threshold",
+          "frost_temperature": "Frost-protection threshold (°C)",
           "failsafe_temperature": "Room-sensor failure water target",
-          "initial_target_temperature": "Initial room target"
+          "initial_target_temperature": "Initial room target",
+          "update_interval": "Control and telemetry interval (seconds)",
+          "baud_rate": "Serial baud rate",
+          "command_timeout": "Serial read/write timeout (seconds)",
+          "command_attempts": "Communication attempts per update",
+          "off_water_temperature": "Heating-off command (1–40)",
+          "heat_threshold": "PI heating activation threshold (°C)",
+          "output_baseline": "PI output baseline (°C)",
+          "water_temperature_step": "Water setpoint step (whole °C)",
+          "target_temperature_min": "Minimum room target (°C)",
+          "target_temperature_max": "Maximum room target (°C)",
+          "target_temperature_step": "Room target step (°C)",
+          "hvac_modes": "Available operating modes",
+          "initial_hvac_mode": "Initial operating mode",
+          "initial_integral": "Initial integral",
+          "restore_state": "Restore saved target, mode and integral",
+          "frost_enabled": "Enable frost protection",
+          "frost_override_off": "Allow frost protection in Off mode",
+          "frost_target": "Frost heating water target (°C, optional)",
+          "frost_source": "Frost-protection temperature source",
+          "sensor_failure_action": "Action when the room sensor fails in Heat mode",
+          "dtr_on_open": "DTR when opening the serial port",
+          "dtr_on_close": "DTR when closing the serial port",
+          "rts_on_open": "RTS when opening the serial port",
+          "rts_on_close": "RTS when closing the serial port"
+        },
+        "data_description": {
+          "update_interval": "PI integral accumulation remains per minute regardless of this interval. Target and mode changes also request an update.",
+          "command_attempts": "Total attempts, including the first attempt.",
+          "off_water_temperature": "The supported firmware treats commands below 41 as heating off and uses an internal 39 °C target.",
+          "water_temperature_step": "The gateway accepts only integers. Setpoints are rounded to multiples of this step, then clamped to the water limits.",
+          "hvac_modes": "Select one or both firmware-supported modes. The initial mode must be selected here.",
+          "restore_state": "When enabled, saved state takes precedence over initial values. Disable to use the initial target, mode and integral after restart or options reload.",
+          "frost_temperature": "Threshold in °C for the selected frost-protection temperature source.",
+          "frost_target": "Leave empty to follow the minimum heating water temperature. Must be within the configured water limits.",
+          "frost_override_off": "When enabled, frost protection can request heating while the thermostat is Off.",
+          "sensor_failure_action": "Hold keeps the last calculated water command; after startup it holds Off until an output is calculated. Frost protection can override any failure action."
         }
       }
     },
     "error": {
       "invalid_water_range": "Minimum water temperature must not exceed maximum water temperature.",
-      "invalid_failsafe": "Failsafe temperature must not be lower than minimum water temperature.",
-      "invalid_integral_range": "Integral minimum must not exceed integral maximum."
+      "invalid_failsafe": "The failsafe target must be within the minimum and maximum water temperatures.",
+      "invalid_integral_range": "Integral minimum must not exceed integral maximum.",
+      "invalid_number": "Enter a finite number within the allowed range; gateway values must be whole numbers.",
+      "must_be_positive": "Enter a value greater than zero.",
+      "invalid_frost_target": "The frost target must be within the minimum and maximum water temperatures.",
+      "invalid_initial_integral": "The initial integral must be within the integral limits.",
+      "invalid_target_range": "The minimum room target must be lower than the maximum room target.",
+      "invalid_initial_target": "The initial room target must be within the room target limits.",
+      "invalid_target_step": "The room target step must not exceed the room target range.",
+      "invalid_choice": "Select at least one supported option.",
+      "invalid_initial_mode": "The initial mode must be one of the available operating modes."
     },
     "abort": {
       "already_configured": "This serial device is already configured."
@@ -46,31 +91,149 @@
           "integral_max": "Integral maximum",
           "min_water_temperature": "Minimum heating water temperature",
           "max_water_temperature": "Maximum heating water temperature",
-          "frost_temperature": "Frost-protection water threshold",
+          "frost_temperature": "Frost-protection threshold (°C)",
           "failsafe_temperature": "Room-sensor failure water target",
-          "initial_target_temperature": "Initial room target"
+          "initial_target_temperature": "Initial room target",
+          "update_interval": "Control and telemetry interval (seconds)",
+          "baud_rate": "Serial baud rate",
+          "command_timeout": "Serial read/write timeout (seconds)",
+          "command_attempts": "Communication attempts per update",
+          "off_water_temperature": "Heating-off command (1–40)",
+          "heat_threshold": "PI heating activation threshold (°C)",
+          "output_baseline": "PI output baseline (°C)",
+          "water_temperature_step": "Water setpoint step (whole °C)",
+          "target_temperature_min": "Minimum room target (°C)",
+          "target_temperature_max": "Maximum room target (°C)",
+          "target_temperature_step": "Room target step (°C)",
+          "hvac_modes": "Available operating modes",
+          "initial_hvac_mode": "Initial operating mode",
+          "initial_integral": "Initial integral",
+          "restore_state": "Restore saved target, mode and integral",
+          "frost_enabled": "Enable frost protection",
+          "frost_override_off": "Allow frost protection in Off mode",
+          "frost_target": "Frost heating water target (°C, optional)",
+          "frost_source": "Frost-protection temperature source",
+          "sensor_failure_action": "Action when the room sensor fails in Heat mode",
+          "dtr_on_open": "DTR when opening the serial port",
+          "dtr_on_close": "DTR when closing the serial port",
+          "rts_on_open": "RTS when opening the serial port",
+          "rts_on_close": "RTS when closing the serial port"
+        },
+        "data_description": {
+          "update_interval": "PI integral accumulation remains per minute regardless of this interval. Target and mode changes also request an update.",
+          "command_attempts": "Total attempts, including the first attempt.",
+          "off_water_temperature": "The supported firmware treats commands below 41 as heating off and uses an internal 39 °C target.",
+          "water_temperature_step": "The gateway accepts only integers. Setpoints are rounded to multiples of this step, then clamped to the water limits.",
+          "hvac_modes": "Select one or both firmware-supported modes. The initial mode must be selected here.",
+          "restore_state": "When enabled, saved state takes precedence over initial values. Disable to use the initial target, mode and integral after restart or options reload.",
+          "frost_temperature": "Threshold in °C for the selected frost-protection temperature source.",
+          "frost_target": "Leave empty to follow the minimum heating water temperature. Must be within the configured water limits.",
+          "frost_override_off": "When enabled, frost protection can request heating while the thermostat is Off.",
+          "sensor_failure_action": "Hold keeps the last calculated water command; after startup it holds Off until an output is calculated. Frost protection can override any failure action."
         }
       }
     },
     "error": {
       "invalid_water_range": "Minimum water temperature must not exceed maximum water temperature.",
-      "invalid_failsafe": "Failsafe temperature must not be lower than minimum water temperature.",
-      "invalid_integral_range": "Integral minimum must not exceed integral maximum."
+      "invalid_failsafe": "The failsafe target must be within the minimum and maximum water temperatures.",
+      "invalid_integral_range": "Integral minimum must not exceed integral maximum.",
+      "invalid_number": "Enter a finite number within the allowed range; gateway values must be whole numbers.",
+      "must_be_positive": "Enter a value greater than zero.",
+      "invalid_frost_target": "The frost target must be within the minimum and maximum water temperatures.",
+      "invalid_initial_integral": "The initial integral must be within the integral limits.",
+      "invalid_target_range": "The minimum room target must be lower than the maximum room target.",
+      "invalid_initial_target": "The initial room target must be within the room target limits.",
+      "invalid_target_step": "The room target step must not exceed the room target range.",
+      "invalid_choice": "Select at least one supported option.",
+      "invalid_initial_mode": "The initial mode must be one of the available operating modes."
     }
   },
   "entity": {
     "sensor": {
-      "water_temperature": {"name": "Heating water temperature"},
-      "return_temperature": {"name": "Return water temperature"},
-      "modulation": {"name": "Boiler modulation"},
-      "water_setpoint": {"name": "Water setpoint"}
+      "water_temperature": {
+        "name": "Heating water temperature"
+      },
+      "return_temperature": {
+        "name": "Return water temperature"
+      },
+      "modulation": {
+        "name": "Boiler modulation"
+      },
+      "water_setpoint": {
+        "name": "Water setpoint"
+      }
     },
     "binary_sensor": {
-      "connected": {"name": "Boiler connected"},
-      "flame": {"name": "Flame"},
-      "fault": {"name": "Fault"},
-      "central_heating": {"name": "Central heating"},
-      "domestic_hot_water": {"name": "Domestic hot water"}
+      "connected": {
+        "name": "Boiler connected"
+      },
+      "flame": {
+        "name": "Flame"
+      },
+      "fault": {
+        "name": "Fault"
+      },
+      "central_heating": {
+        "name": "Central heating"
+      },
+      "domestic_hot_water": {
+        "name": "Domestic hot water"
+      }
+    }
+  },
+  "selector": {
+    "hvac_modes": {
+      "options": {
+        "heat": "Heat",
+        "off": "Off"
+      }
+    },
+    "initial_hvac_mode": {
+      "options": {
+        "heat": "Heat",
+        "off": "Off"
+      }
+    },
+    "frost_source": {
+      "options": {
+        "water": "Gateway heating water",
+        "room": "Configured room sensor"
+      }
+    },
+    "sensor_failure_action": {
+      "options": {
+        "heat": "Use failsafe water target",
+        "off": "Turn heating off",
+        "hold": "Hold last water command"
+      }
+    },
+    "dtr_on_open": {
+      "options": {
+        "unchanged": "Leave unchanged",
+        "low": "Low",
+        "high": "High"
+      }
+    },
+    "dtr_on_close": {
+      "options": {
+        "unchanged": "Leave unchanged",
+        "low": "Low",
+        "high": "High"
+      }
+    },
+    "rts_on_open": {
+      "options": {
+        "unchanged": "Leave unchanged",
+        "low": "Low",
+        "high": "High"
+      }
+    },
+    "rts_on_close": {
+      "options": {
+        "unchanged": "Leave unchanged",
+        "low": "Low",
+        "high": "High"
+      }
     }
   }
 }

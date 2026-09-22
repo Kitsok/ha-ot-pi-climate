@@ -1,5 +1,6 @@
 """Climate entity for OpenTherm PI Climate."""
 
+import math
 from typing import Any
 
 from homeassistant.components.climate import ClimateEntity
@@ -24,16 +25,17 @@ class OpenThermClimate(OpenThermEntity, ClimateEntity):
     """Room thermostat backed by the PI boiler controller."""
 
     _attr_name = None
-    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_target_temperature_step = 0.5
-    _attr_min_temp = 5.0
-    _attr_max_temp = 35.0
 
     def __init__(self, entry: OpenThermConfigEntry) -> None:
         super().__init__(entry.runtime_data.coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_climate"
+        controller = self.coordinator.controller
+        self._attr_hvac_modes = controller.hvac_modes
+        self._attr_target_temperature_step = controller.target_step
+        self._attr_min_temp = controller.target_min
+        self._attr_max_temp = controller.target_max
 
     @property
     def current_temperature(self) -> float | None:
@@ -68,7 +70,10 @@ class OpenThermClimate(OpenThermEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
-        self.coordinator.controller.target_temperature = float(temperature)
+        temperature = float(temperature)
+        if not math.isfinite(temperature) or not self.min_temp <= temperature <= self.max_temp:
+            raise ValueError("Target temperature is outside the configured range")
+        self.coordinator.controller.target_temperature = temperature
         self.async_write_ha_state()
         await self.coordinator.async_request_refresh()
 

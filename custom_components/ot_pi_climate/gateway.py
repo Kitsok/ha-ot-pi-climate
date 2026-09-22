@@ -7,7 +7,7 @@ from typing import Any
 
 from serialx import PinState, open_serial_connection
 
-from .const import BAUD_RATE, COMMAND_RETRIES, COMMAND_TIMEOUT
+from . import const as c
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,11 +19,24 @@ class OpenThermGatewayError(Exception):
 class OpenThermGateway:
     """Manage one persistent connection to the USB gateway."""
 
-    def __init__(self, port: str) -> None:
+    def __init__(self, port: str, settings: dict[str, Any] | None = None) -> None:
         self.port = port
+        self.settings = {**c.DEFAULTS, **(settings or {})}
+        self.baud_rate = int(self.settings[c.CONF_BAUD_RATE])
+        self.command_timeout = float(self.settings[c.CONF_COMMAND_TIMEOUT])
+        self.command_attempts = int(self.settings[c.CONF_COMMAND_ATTEMPTS])
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+
+    def _pin_state(self, key: str) -> PinState:
+        """Translate the UI pin policy into the serial library's state."""
+
+        return {
+            "unchanged": PinState.UNDEFINED,
+            "low": PinState.LOW,
+            "high": PinState.HIGH,
+        }[self.settings[key]]
 
     async def async_connect(self) -> None:
         """Open the serial port if needed."""
@@ -33,11 +46,11 @@ class OpenThermGateway:
         try:
             self._reader, self._writer = await open_serial_connection(
                 url=self.port,
-                baudrate=BAUD_RATE,
-                dtr_on_open=PinState.UNDEFINED,
-                dtr_on_close=PinState.UNDEFINED,
-                rts_on_open=PinState.UNDEFINED,
-                rts_on_close=PinState.UNDEFINED,
+                baudrate=self.baud_rate,
+                dtr_on_open=self._pin_state(c.CONF_DTR_ON_OPEN),
+                dtr_on_close=self._pin_state(c.CONF_DTR_ON_CLOSE),
+                rts_on_open=self._pin_state(c.CONF_RTS_ON_OPEN),
+                rts_on_close=self._pin_state(c.CONF_RTS_ON_CLOSE),
             )
         except (OSError, TimeoutError) as err:
             raise OpenThermGatewayError(f"Unable to open serial port {self.port}: {err}") from err
@@ -60,7 +73,7 @@ class OpenThermGateway:
         """Send the heartbeat setpoint and retrieve one JSON snapshot."""
 
         async with self._lock:
-            for attempt in range(1, COMMAND_RETRIES + 1):
+            for attempt in range(1, self.command_attempts + 1):
                 try:
                     await self.async_connect()
                     await self._send_command(f"s {setpoint}")
@@ -80,23 +93,25 @@ class OpenThermGateway:
                     UnicodeError,
                     json.JSONDecodeError,
                 ) as err:
-                    _LOGGER.debug("Gateway attempt %s/%s failed: %s", attempt, COMMAND_RETRIES, err)
+                    _LOGGER.debug(
+                        "Gateway attempt %s/%s failed: %s", attempt, self.command_attempts, err
+                    )
                     await self.async_close()
 
             raise OpenThermGatewayError(
-                f"No valid response from {self.port} after {COMMAND_RETRIES} attempts"
+                f"No valid response from {self.port} after {self.command_attempts} attempts"
             )
 
     async def _send_command(self, command: str) -> None:
         if self._writer is None:
             raise OpenThermGatewayError("Serial connection is not open")
         self._writer.write(f"{command}\r".encode("ascii"))
-        await asyncio.wait_for(self._writer.drain(), timeout=COMMAND_TIMEOUT)
+        await asyncio.wait_for(self._writer.drain(), timeout=self.command_timeout)
 
     async def _read_response(self) -> str:
         if self._reader is None:
             raise OpenThermGatewayError("Serial connection is not open")
-        raw = await asyncio.wait_for(self._reader.readuntil(b"\n"), timeout=COMMAND_TIMEOUT)
+        raw = await asyncio.wait_for(self._reader.readuntil(b"\n"), timeout=self.command_timeout)
         return raw.decode("ascii").strip()
 
     @staticmethod

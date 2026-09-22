@@ -20,7 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenThermConfigEntry) ->
     store: Store[dict] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
     controller = PIController(config)
     controller.restore(await store.async_load())
-    gateway = OpenThermGateway(config[CONF_SERIAL_PORT])
+    gateway = OpenThermGateway(config[CONF_SERIAL_PORT], config)
     coordinator = OpenThermCoordinator(hass, gateway, controller, config[CONF_TEMPERATURE_ENTITY])
     entry.runtime_data = OpenThermRuntimeData(gateway, controller, coordinator)
 

@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from .const import UPDATE_INTERVAL_SECONDS
+from .const import CONF_UPDATE_INTERVAL
 from .controller import ControllerResult, PIController
 from .gateway import OpenThermGateway, OpenThermGatewayError
 
@@ -32,12 +32,12 @@ class OpenThermCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name="OpenTherm PI Climate",
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=controller.settings[CONF_UPDATE_INTERVAL]),
         )
         self.gateway = gateway
         self.controller = controller
         self.temperature_entity = temperature_entity
-        self.result = ControllerResult(39, False, False, False)
+        self.result = ControllerResult(controller.off_water_temperature, False, False, False)
         self._last_calculation: float | None = None
 
     @property

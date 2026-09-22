@@ -243,9 +243,9 @@ Hardware** and find the newly added serial controller. Its device path will
 usually be `/dev/ttyS0` or `/dev/ttyS1`.
 
 Configure **OpenTherm PI Climate** with that `/dev/ttyS*` path and the desired
-room-temperature sensor and PI settings. The configured baud rate remains
-115200. The emulated UART transports a byte stream through QEMU, so it does not
-need to match a physical host UART.
+room-temperature sensor and PI settings. The baud rate defaults to 115200 and
+can be changed in the integration options. The emulated UART transports a byte
+stream through QEMU, so it does not need to match a physical host UART.
 
 Unlike USB passthrough, a PCI serial port commonly has no
 `/dev/serial/by-id/...` alias. Its `/dev/ttyS*` number remains stable while the

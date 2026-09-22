@@ -66,3 +66,23 @@ async def test_refreshes_integrate_actual_elapsed_time(tmp_path, monkeypatch) ->
     await coordinator._async_update_data()
     await coordinator._async_update_data()
     assert controller.integral == pytest.approx(0.8)
+
+
+@pytest.mark.asyncio
+async def test_custom_polling_interval_preserves_per_minute_integral(tmp_path, monkeypatch) -> None:
+    hass = HomeAssistant(str(tmp_path))
+    frame.async_setup(hass)
+    hass.states.async_set(
+        "sensor.room", "19", {ATTR_UNIT_OF_MEASUREMENT: UnitOfTemperature.CELSIUS}
+    )
+    controller = PIController({**DEFAULTS, "update_interval": 10, "off_water_temperature": 30})
+    gateway = Mock(async_update=AsyncMock(return_value={"Tout": 30, "Flame": False}))
+    coordinator = OpenThermCoordinator(hass, gateway, controller, "sensor.room")
+    clock = Mock(monotonic=Mock(side_effect=[0, 10, 20, 30, 40, 50, 60]))
+    monkeypatch.setattr("custom_components.ot_pi_climate.coordinator.time", clock)
+
+    assert coordinator.update_interval.total_seconds() == 10
+    assert coordinator.result.water_setpoint == 30
+    for _ in range(7):
+        await coordinator._async_update_data()
+    assert controller.integral == pytest.approx(0.8)
